@@ -9,12 +9,48 @@ interface VideoFile {
   duration: number;
 }
 
+interface QualitySettings {
+  resolution: string;
+  bitrate: string;
+  fps: number;
+  compression: number;
+  format: string;
+}
+
+const QUALITY_PRESETS = {
+  '4K': { resolution: '3840x2160', bitrate: '20M', fps: 30, compression: 0 },
+  '1080p': { resolution: '1920x1080', bitrate: '8M', fps: 30, compression: 0 },
+  '720p': { resolution: '1280x720', bitrate: '4M', fps: 30, compression: 0 },
+  '480p': { resolution: '854x480', bitrate: '2M', fps: 30, compression: 0 },
+  '360p': { resolution: '640x360', bitrate: '1M', fps: 30, compression: 0 },
+};
+
+const COMPRESSION_LEVELS = [
+  { value: 0, label: 'No Compression' },
+  { value: 1, label: 'Light Compression' },
+  { value: 2, label: 'Medium Compression' },
+  { value: 3, label: 'High Compression' },
+];
+
+const FORMATS = [
+  { value: 'mp4', label: 'MP4 (H.264)' },
+  { value: 'webm', label: 'WebM (VP9)' },
+  { value: 'mov', label: 'MOV (ProRes)' },
+];
+
 export default function VideoMerger() {
   const [videos, setVideos] = useState<VideoFile[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [mergedVideoUrl, setMergedVideoUrl] = useState<string | null>(null);
+  const [settings, setSettings] = useState<QualitySettings>({
+    resolution: '1920x1080',
+    bitrate: '8M',
+    fps: 30,
+    compression: 0,
+    format: 'mp4',
+  });
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -51,6 +87,10 @@ export default function VideoMerger() {
     setVideos(newVideos);
   };
 
+  const handleQualityChange = (preset: keyof typeof QUALITY_PRESETS) => {
+    setSettings(QUALITY_PRESETS[preset]);
+  };
+
   const mergeVideos = async () => {
     if (videos.length < 2) {
       setError('Please upload at least 2 videos to merge');
@@ -67,6 +107,9 @@ export default function VideoMerger() {
       videos.forEach((video) => {
         formData.append('files', video.file);
       });
+
+      // Add quality settings to formData
+      formData.append('settings', JSON.stringify(settings));
 
       const response = await fetch('/api/merge', {
         method: 'POST',
@@ -94,7 +137,7 @@ export default function VideoMerger() {
 
     const link = document.createElement('a');
     link.href = mergedVideoUrl;
-    link.download = 'merged-video.mp4';
+    link.download = `merged-video.${settings.format}`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -152,7 +195,73 @@ export default function VideoMerger() {
       </div>
 
       {videos.length > 0 && (
-        <div className="mt-6">
+        <div className="mt-6 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Quality Preset
+              </label>
+              <select
+                className="w-full p-2 border rounded-lg"
+                onChange={(e) => handleQualityChange(e.target.value as keyof typeof QUALITY_PRESETS)}
+              >
+                {Object.keys(QUALITY_PRESETS).map((preset) => (
+                  <option key={preset} value={preset}>
+                    {preset}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Compression Level
+              </label>
+              <select
+                className="w-full p-2 border rounded-lg"
+                value={settings.compression}
+                onChange={(e) => setSettings({ ...settings, compression: parseInt(e.target.value) })}
+              >
+                {COMPRESSION_LEVELS.map((level) => (
+                  <option key={level.value} value={level.value}>
+                    {level.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Output Format
+              </label>
+              <select
+                className="w-full p-2 border rounded-lg"
+                value={settings.format}
+                onChange={(e) => setSettings({ ...settings, format: e.target.value })}
+              >
+                {FORMATS.map((format) => (
+                  <option key={format.value} value={format.value}>
+                    {format.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Frame Rate
+              </label>
+              <input
+                type="number"
+                className="w-full p-2 border rounded-lg"
+                value={settings.fps}
+                onChange={(e) => setSettings({ ...settings, fps: parseInt(e.target.value) })}
+                min="1"
+                max="60"
+              />
+            </div>
+          </div>
+
           <button
             onClick={mergeVideos}
             disabled={isProcessing}

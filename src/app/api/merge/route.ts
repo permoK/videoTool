@@ -6,10 +6,26 @@ import { promisify } from 'util';
 
 const execAsync = promisify(exec);
 
+interface QualitySettings {
+  resolution: string;
+  bitrate: string;
+  fps: number;
+  compression: number;
+  format: string;
+}
+
+const COMPRESSION_PRESETS = {
+  0: { crf: 23, preset: 'ultrafast' }, // No compression
+  1: { crf: 26, preset: 'veryfast' }, // Light compression
+  2: { crf: 28, preset: 'fast' },     // Medium compression
+  3: { crf: 30, preset: 'medium' },   // High compression
+};
+
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
     const files = formData.getAll('files') as File[];
+    const settings = JSON.parse(formData.get('settings') as string) as QualitySettings;
     
     if (files.length < 2) {
       return NextResponse.json(
@@ -36,19 +52,14 @@ export async function POST(request: Request) {
       })
     );
 
-    // Create a file list for FFmpeg
-    const fileListPath = join(tempDir, 'file_list.txt');
-    const fileListContent = filePaths.map(path => `file '${path}'`).join('\n');
-    await writeFile(fileListPath, fileListContent);
+    // Get compression settings
+    const compression = COMPRESSION_PRESETS[settings.compression as keyof typeof COMPRESSION_PRESETS];
 
-    // Create FFmpeg command to merge videos
-    const outputPath = join(outputDir, `merged_${Date.now()}.mp4`);
-    
     // First, normalize all videos to the same format and properties
     const normalizeCommands = await Promise.all(
       filePaths.map(async (path, index) => {
         const normalizedPath = join(tempDir, `normalized_${index}.mp4`);
-        const command = `ffmpeg -i ${path} -c:v libx264 -preset ultrafast -crf 23 -c:a aac -b:a 192k -r 30 -vf "scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2" ${normalizedPath}`;
+        const command = `ffmpeg -i ${path} -c:v libx264 -preset ${compression.preset} -crf ${compression.crf} -c:a aac -b:a 192k -r ${settings.fps} -vf "scale=${settings.resolution}:force_original_aspect_ratio=decrease,pad=${settings.resolution}:(ow-iw)/2:(oh-ih)/2" ${normalizedPath}`;
         await execAsync(command);
         return normalizedPath;
       })
@@ -60,14 +71,26 @@ export async function POST(request: Request) {
     await writeFile(normalizedFileListPath, normalizedFileListContent);
 
     // Merge the normalized videos
-    const mergeCommand = `ffmpeg -f concat -safe 0 -i ${normalizedFileListPath} -c copy ${outputPath}`;
+    const outputPath = join(outputDir, `merged_${Date.now()}.${settings.format}`);
+    let mergeCommand = '';
+
+    switch (settings.format) {
+      case 'webm':
+        mergeCommand = `ffmpeg -f concat -safe 0 -i ${normalizedFileListPath} -c:v libvpx-vp9 -b:v ${settings.bitrate} -c:a libopus -b:a 192k ${outputPath}`;
+        break;
+      case 'mov':
+        mergeCommand = `ffmpeg -f concat -safe 0 -i ${normalizedFileListPath} -c:v prores_ks -profile:v 3 -c:a pcm_s16le ${outputPath}`;
+        break;
+      default: // mp4
+        mergeCommand = `ffmpeg -f concat -safe 0 -i ${normalizedFileListPath} -c:v libx264 -preset ${compression.preset} -crf ${compression.crf} -c:a aac -b:a 192k ${outputPath}`;
+    }
+
     await execAsync(mergeCommand);
 
     // Clean up temporary files
     await Promise.all([
       ...filePaths.map(path => execAsync(`rm ${path}`)),
       ...normalizeCommands.map(path => execAsync(`rm ${path}`)),
-      execAsync(`rm ${fileListPath}`),
       execAsync(`rm ${normalizedFileListPath}`)
     ]);
 

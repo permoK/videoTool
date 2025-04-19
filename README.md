@@ -1,37 +1,115 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Video Merger
 
-## Getting Started
+A powerful web application for merging multiple videos with customizable quality settings and compression options.
 
-First, run the development server:
+## Features
 
+- **Drag and Drop Interface**: Easy video upload with drag and drop support
+- **Multiple Format Support**: Works with MP4, AVI, MOV, MKV, and WebM files
+- **Quality Controls**:
+  - Resolution presets (4K, 1080p, 720p, 480p, 360p)
+  - Custom frame rate selection
+  - Multiple output formats (MP4, WebM, MOV)
+  - Compression levels (No Compression to High Compression)
+- **Fast Processing**: Uses FFmpeg for efficient video processing
+- **Preview and Download**: Preview merged videos before downloading
+
+## Setup
+
+1. Create a Python virtual environment (recommended):
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+python -m venv venv
+source venv/bin/activate  # On Linux/Mac
+# OR
+.\venv\Scripts\activate  # On Windows
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Install dependencies:
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Install FFmpeg (required for video processing):
+```bash
+sudo apt-get update
+sudo apt-get install -y ffmpeg
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+4. Run the setup script:
+```bash
+./scripts/setup.sh
+```
 
-## Learn More
+## Usage
 
-To learn more about Next.js, take a look at the following resources:
+1. Start the development server:
+```bash
+npm run dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+2. Open your browser and go to `http://localhost:3000`
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+3. Upload videos by dragging and dropping them onto the interface
 
-## Deploy on Vercel
+4. Configure quality settings:
+   - Select a quality preset (4K, 1080p, etc.)
+   - Choose compression level
+   - Select output format
+   - Adjust frame rate if needed
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+5. Click "Merge Videos" to process
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-# videoTool
+6. Preview and download the merged video
+
+## Quality Settings
+
+### Resolution Presets
+- 4K (3840x2160)
+- 1080p (1920x1080)
+- 720p (1280x720)
+- 480p (854x480)
+- 360p (640x360)
+
+### Compression Levels
+- No Compression: Best quality, larger file size
+- Light Compression: Good quality, moderate file size
+- Medium Compression: Balanced quality and size
+- High Compression: Smaller file size, reduced quality
+
+### Output Formats
+- MP4 (H.264): Best compatibility
+- WebM (VP9): Better compression
+- MOV (ProRes): Professional quality
+
+## Project Structure
+
+```
+video-merger-web/
+├── src/
+│   ├── app/
+│   │   ├── api/
+│   │   │   └── merge/      # Video processing API
+│   │   └── page.tsx        # Main page
+│   └── components/
+│       └── VideoMerger.tsx # Video merger component
+├── public/
+│   └── merged/            # Output directory
+├── temp/                  # Temporary files
+└── scripts/
+    └── setup.sh          # Setup script
+```
+
+## Supported Video Formats
+
+- MP4 (.mp4)
+- AVI (.avi)
+- MOV (.mov)
+- MKV (.mkv)
+- WebM (.webm)
+
+## Notes
+
+- Temporary files are automatically cleaned up after processing
+- Merged videos are stored in the `public/merged` directory
+- Original video quality is preserved unless compression is applied
+- Processing time depends on video size and quality settings
